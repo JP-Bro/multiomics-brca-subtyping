@@ -172,6 +172,6 @@ A Streamlit application (`app/app.py`) provides:
 
 ![SHAP — HER2 subtype top features](results/figures/shap_Her2.png)
 
-**[Live demo link]** *(add once deployed via Streamlit Community Cloud)*
+**[Live Demo](https://multiomics-brca-subtyping.streamlit.app/)**
 
 ## Repository Structure
