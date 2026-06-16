@@ -3,44 +3,260 @@ import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import pickle, torch, numpy as np, pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 from src.models import MultiOmicsAutoencoder
 
 # ============ PAGE CONFIG ============
 st.set_page_config(
     page_title="Multi-Omics BRCA Subtype Classifier",
     page_icon="🧬",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# ============ CUSTOM CSS ============
+# ============ DESIGN SYSTEM ============
 st.markdown("""
 <style>
-.main-header {
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: #1f3a5f;
-    margin-bottom: 0;
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --bg-deep: #0b1220;
+    --bg-panel: #131c2e;
+    --bg-panel-light: #1a2640;
+    --border: #253349;
+    --teal: #14b8a6;
+    --teal-dim: #0d9488;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --text-primary: #e8edf5;
+    --text-secondary: #8b9bb4;
+    --text-muted: #5a6b85;
 }
-.sub-header {
-    font-size: 1rem;
-    color: #5a6c7d;
-    margin-bottom: 2rem;
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
 }
-.metric-card {
-    background-color: #ffffff;
+
+.stApp {
+    background: var(--bg-deep);
+}
+
+/* Hide default streamlit chrome clutter */
+#MainMenu, footer, header {visibility: hidden;}
+.block-container {
+    padding-top: 1.5rem !important;
+    padding-bottom: 2rem !important;
+    max-width: 1200px;
+}
+
+/* ---------- HERO ---------- */
+.hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.4rem;
+    margin-bottom: 1.8rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 0.4rem;
+    display: block;
+}
+.hero-title {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+.hero-sub {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-top: 0.45rem;
+    max-width: 560px;
+}
+.hero-cohort {
+    font-family: 'JetBrains Mono', monospace;
+    text-align: right;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    line-height: 1.6;
+}
+.hero-cohort b { color: var(--text-secondary); font-weight: 600; }
+
+/* ---------- READOUT METRIC ROW ---------- */
+.readout-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 1.2rem;
-    border-left: 4px solid #2e7bcf;
-    color: #1f3a5f;
+    overflow: hidden;
+    margin-bottom: 1.8rem;
 }
-.metric-card [data-testid="stMetricValue"] {
-    color: #1f3a5f;
+.readout-cell {
+    background: var(--bg-panel);
+    padding: 1.1rem 1.3rem;
+    position: relative;
 }
-.metric-card [data-testid="stMetricLabel"] {
-    color: #5a6c7d;
+.readout-cell.accent::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 3px;
+    background: var(--teal);
 }
+.readout-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+.readout-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+.readout-value.dim { color: var(--text-secondary); font-size: 1.7rem; }
+.readout-delta {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+}
+.readout-delta.up { color: var(--teal); }
+.readout-delta.down { color: var(--rose); }
+
+/* ---------- SECTION LABEL ---------- */
+.section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin: 1.6rem 0 0.7rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.section-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+/* ---------- PANEL ---------- */
+.panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.3rem 1.4rem;
+}
+
+/* ---------- FINDING ROW ---------- */
+.finding {
+    display: flex;
+    gap: 0.85rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--border);
+}
+.finding:last-child { border-bottom: none; }
+.finding-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--teal);
+    background: rgba(20, 184, 166, 0.1);
+    border: 1px solid rgba(20, 184, 166, 0.25);
+    border-radius: 5px;
+    padding: 0.15rem 0.5rem;
+    height: fit-content;
+    white-space: nowrap;
+    margin-top: 0.1rem;
+}
+.finding-tag.warn {
+    color: var(--amber);
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.25);
+}
+.finding-text {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+}
+.finding-text b { color: var(--text-primary); font-weight: 600; }
+
+/* ---------- SUBTYPE CHIPS ---------- */
+.subtype-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.7rem;
+}
+.subtype-chip {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--chip-color, var(--teal));
+    border-radius: 8px;
+    padding: 0.8rem 0.9rem;
+}
+.subtype-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    margin-bottom: 0.3rem;
+}
+.subtype-desc {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* ---------- TABS ---------- */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0.3rem;
+    background: var(--bg-panel);
+    padding: 0.3rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 7px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    height: 2.4rem;
+}
+.stTabs [aria-selected="true"] {
+    background: var(--bg-panel-light) !important;
+    color: var(--text-primary) !important;
+}
+
+/* ---------- IMAGE FRAME ---------- */
+.img-frame {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.8rem;
+}
+.img-frame img { border-radius: 6px; }
+
+/* Streamlit native overrides */
+[data-testid="stMetricValue"] { color: var(--text-primary); }
+.stRadio > label, .stSlider > label { color: var(--text-secondary) !important; }
+hr { border-color: var(--border) !important; }
+[data-testid="stCaptionContainer"] { color: var(--text-muted) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -67,81 +283,107 @@ def load_artifacts():
 xgb_model, ae_model, data, meta = load_artifacts()
 X_expr_test, X_mut_test, y_test, X_test = data['X_expr_test'], data['X_mut_test'], data['y_test'], data['X_test_concat']
 le_classes = meta['label_classes']
+acc_xgb = (xgb_model.predict(X_test) == y_test).mean()
 
-# ============ HEADER ============
-st.markdown('<p class="main-header">🧬 Multi-Omics Breast Cancer Subtype Classifier</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Predicting PAM50 molecular subtypes from gene expression + mutation data (TCGA-BRCA, n=593)</p>', unsafe_allow_html=True)
+# ============ HERO ============
+st.markdown(f"""
+<div class="hero">
+    <div>
+        <span class="hero-eyebrow">Precision Oncology · Multi-Omics ML</span>
+        <h1 class="hero-title">Breast Cancer Subtype Classifier</h1>
+        <p class="hero-sub">Predicting PAM50 molecular subtype from gene expression and somatic mutation profiles. Two architectures, compared head-to-head, on real TCGA-BRCA patient data.</p>
+    </div>
+    <div class="hero-cohort">
+        COHORT &nbsp;<b>n=593</b><br>
+        SOURCE &nbsp;<b>TCGA-BRCA</b><br>
+        CLASSES &nbsp;<b>5 (PAM50)</b>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ============ TABS ============
-tab1, tab2, tab3 = st.tabs(["📊 Overview & Results", "🔬 Live Prediction Demo", "🧠 Model Interpretability"])
+tab1, tab2, tab3 = st.tabs(["OVERVIEW", "LIVE PREDICTION", "INTERPRETABILITY"])
 
 # ---------------- TAB 1: OVERVIEW ----------------
 with tab1:
-    col1, col2, col3, col4 = st.columns(4)
-    acc_xgb = (xgb_model.predict(X_test) == y_test).mean()
+    st.markdown(f"""
+    <div class="readout-row">
+        <div class="readout-cell">
+            <div class="readout-label">XGBoost</div>
+            <div class="readout-value">{acc_xgb:.1%}</div>
+            <div class="readout-delta">late fusion, 4,716 features</div>
+        </div>
+        <div class="readout-cell accent">
+            <div class="readout-label">Autoencoder Fusion</div>
+            <div class="readout-value">{meta['acc_full']:.1%}</div>
+            <div class="readout-delta up">best of two architectures</div>
+        </div>
+        <div class="readout-cell">
+            <div class="readout-label">Expression-Only Ablation</div>
+            <div class="readout-value dim">{meta['acc_expr_only']:.1%}</div>
+            <div class="readout-delta">matches full model exactly</div>
+        </div>
+        <div class="readout-cell">
+            <div class="readout-label">Mutation-Only Ablation</div>
+            <div class="readout-value dim">{meta['acc_mut_only']:.1%}</div>
+            <div class="readout-delta down">−40.5pp vs. full model</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with col1:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("XGBoost Accuracy", f"{acc_xgb:.1%}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("Autoencoder Fusion Accuracy", f"{meta['acc_full']:.1%}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("Expression-only Accuracy", f"{meta['acc_expr_only']:.1%}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col4:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("Mutation-only Accuracy", f"{meta['acc_mut_only']:.1%}")
-        st.markdown('</div>', unsafe_allow_html=True)
+    col_left, col_right = st.columns([1.15, 1])
 
-    st.markdown("---")
-
-    col_left, col_right = st.columns([1, 1])
     with col_left:
-        st.subheader("Confusion Matrices")
+        st.markdown('<div class="section-label">Confusion Matrices</div>', unsafe_allow_html=True)
         cm_path = os.path.join(os.path.dirname(__file__), '..', 'results', 'figures', 'confusion_matrices.png')
+        st.markdown('<div class="img-frame">', unsafe_allow_html=True)
         if os.path.exists(cm_path):
-            st.image(cm_path, use_column_width=True)
+            st.image(cm_path, use_container_width=True)
         else:
-            st.info("Run notebook 05 to generate confusion matrix figure.")
+            st.caption("Run notebook 05 to generate this figure.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with col_right:
-        st.subheader("Key Findings")
+        st.markdown('<div class="section-label">Key Findings</div>', unsafe_allow_html=True)
         st.markdown("""
-        - **Domain-informed feature selection**: Adding ERBB2 and MKI67 (clinically critical PAM50 markers
-          missed by variance-based selection) improved Her2 recall (0.57→0.71) and LumB precision (0.83→0.92).
-        - **Architecture comparison**: Autoencoder fusion matched XGBoost overall (85% vs 84%), with
-          complementary per-class strengths — better LumB, slightly weaker Her2.
-        - **Ablation finding**: Expression alone matches the full fusion model exactly (85.4%), while
-          mutation alone reaches only 45%. Gene expression carries nearly all the predictive signal for
-          PAM50 — consistent with PAM50 being an expression-derived classifier.
-        - **Normal-like subtype** (19/593 patients) was not reliably classified by either model,
-          consistent with its known instability as a PAM50 category in the literature.
-        """)
+        <div class="panel">
+            <div class="finding">
+                <span class="finding-tag">FEATURE ENG.</span>
+                <span class="finding-text">Adding back <b>ERBB2</b> and <b>MKI67</b> — clinically critical markers dropped by pure variance selection — improved Her2 recall <b>0.57→0.71</b> and LumB precision <b>0.83→0.92</b>.</span>
+            </div>
+            <div class="finding">
+                <span class="finding-tag">ARCHITECTURE</span>
+                <span class="finding-text">Autoencoder fusion matched XGBoost overall but with <b>complementary strengths</b> — stronger LumB recall, slightly weaker Her2.</span>
+            </div>
+            <div class="finding">
+                <span class="finding-tag">ABLATION</span>
+                <span class="finding-text">Expression alone reproduces full-model accuracy <b>exactly</b>. Mutation data added <b>no measurable signal</b> for this task.</span>
+            </div>
+            <div class="finding">
+                <span class="finding-tag warn">LIMITATION</span>
+                <span class="finding-text">Normal-like (19/593 patients) was <b>not reliably classified</b> by either model — a known instability of this PAM50 category, not a modeling failure.</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.subheader("About PAM50 Subtypes")
-    info_cols = st.columns(5)
-    subtype_info = {
-        "Basal": "Triple-negative, aggressive, chemo-responsive",
-        "Her2": "HER2-amplified, targeted therapy (trastuzumab)",
-        "LumA": "Hormone receptor+, low proliferation, good prognosis",
-        "LumB": "Hormone receptor+, higher proliferation than LumA",
-        "Normal": "Normal-like profile, biologically debated subtype"
-    }
-    for col, (subtype, desc) in zip(info_cols, subtype_info.items()):
-        with col:
-            st.markdown(f"**{subtype}**")
-            st.caption(desc)
+    st.markdown('<div class="section-label">PAM50 Subtypes</div>', unsafe_allow_html=True)
+    subtype_info = [
+        ("Basal", "Triple-negative, aggressive, chemo-responsive", "#f43f5e"),
+        ("Her2", "HER2-amplified, targeted therapy (trastuzumab)", "#f59e0b"),
+        ("LumA", "Hormone receptor+, low proliferation, good prognosis", "#14b8a6"),
+        ("LumB", "Hormone receptor+, higher proliferation than LumA", "#38bdf8"),
+        ("Normal", "Normal-like profile, biologically debated subtype", "#8b9bb4"),
+    ]
+    chips_html = '<div class="subtype-grid">'
+    for name, desc, color in subtype_info:
+        chips_html += f'<div class="subtype-chip" style="--chip-color:{color}"><div class="subtype-name">{name}</div><div class="subtype-desc">{desc}</div></div>'
+    chips_html += '</div>'
+    st.markdown(chips_html, unsafe_allow_html=True)
 
 # ---------------- TAB 2: LIVE PREDICTION DEMO ----------------
 with tab2:
-    st.subheader("Get a Prediction")
-
-    mode = st.radio("Choose input method:", ["Select test patient (demo)", "Upload patient data (CSV)"])
+    st.markdown('<div class="section-label">Input</div>', unsafe_allow_html=True)
+    mode = st.radio("Choose input method:", ["Select test patient (demo)", "Upload patient data (CSV)"], label_visibility="collapsed")
 
     if mode == "Select test patient (demo)":
         idx = st.slider("Patient index", 0, len(y_test) - 1, 0)
@@ -149,23 +391,17 @@ with tab2:
         expr_vec = X_expr_test[idx:idx+1]
         mut_vec = X_mut_test[idx:idx+1]
         xgb_vec = X_test[idx:idx+1]
-        st.markdown(f"**True Subtype (known for this demo patient)**: {true_label}")
+        st.caption(f"True subtype for this held-out test patient: **{true_label}**")
 
     else:
-        st.markdown("""
-        Upload a CSV with **one row** containing:
-        - Expression values for the model's expression genes (in order)
-        - Mutation values (0/1) for the model's mutation genes (in order)
-        - Total columns expected: **{} expression + {} mutation = {}**
-        """.format(len(meta['expr_features']), len(meta['mut_features']),
-                   len(meta['expr_features']) + len(meta['mut_features'])))
+        st.caption(f"Upload one row: {len(meta['expr_features'])} expression + {len(meta['mut_features'])} mutation columns = {len(meta['expr_features']) + len(meta['mut_features'])} total, in order.")
 
         template_cols = meta['expr_features'] + meta['mut_features']
         template_df = pd.DataFrame(columns=template_cols)
         st.download_button("Download CSV template", template_df.to_csv(index=False),
                             "patient_template.csv", "text/csv")
 
-        uploaded = st.file_uploader("Upload patient CSV", type="csv")
+        uploaded = st.file_uploader("Upload patient CSV", type="csv", label_visibility="collapsed")
 
         if uploaded is not None:
             patient_df = pd.read_csv(uploaded)
@@ -192,40 +428,40 @@ with tab2:
 
     xgb_probs = xgb_model.predict_proba(xgb_vec)[0]
 
+    st.markdown('<div class="section-label">Predictions</div>', unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("**XGBoost Prediction**")
+        st.markdown(f'<div class="panel"><b style="color:#e8edf5">XGBoost</b> → <span style="color:#14b8a6;font-weight:700">{le_classes[xgb_probs.argmax()]}</span></div>', unsafe_allow_html=True)
         xgb_df = pd.DataFrame({'Subtype': le_classes, 'Probability': xgb_probs}).sort_values('Probability', ascending=False)
-        st.bar_chart(xgb_df.set_index('Subtype'))
-        st.success(f"Predicted: **{le_classes[xgb_probs.argmax()]}**")
+        st.bar_chart(xgb_df.set_index('Subtype'), color="#14b8a6")
 
     with col2:
-        st.markdown("**Autoencoder Fusion Prediction**")
+        st.markdown(f'<div class="panel"><b style="color:#e8edf5">Autoencoder Fusion</b> → <span style="color:#14b8a6;font-weight:700">{le_classes[ae_probs.argmax()]}</span></div>', unsafe_allow_html=True)
         ae_df = pd.DataFrame({'Subtype': le_classes, 'Probability': ae_probs}).sort_values('Probability', ascending=False)
-        st.bar_chart(ae_df.set_index('Subtype'))
-        st.success(f"Predicted: **{le_classes[ae_probs.argmax()]}**")
+        st.bar_chart(ae_df.set_index('Subtype'), color="#38bdf8")
 
     if true_label:
-        st.markdown("---")
-        agree_xgb = "✅" if le_classes[xgb_probs.argmax()] == true_label else "❌"
-        agree_ae = "✅" if le_classes[ae_probs.argmax()] == true_label else "❌"
-        st.markdown(f"True label: **{true_label}** | XGBoost correct: {agree_xgb} | Autoencoder correct: {agree_ae}")
+        agree_xgb = "agrees" if le_classes[xgb_probs.argmax()] == true_label else "disagrees"
+        agree_ae = "agrees" if le_classes[ae_probs.argmax()] == true_label else "disagrees"
+        st.caption(f"Ground truth: **{true_label}** — XGBoost {agree_xgb}, Autoencoder Fusion {agree_ae}.")
 
 # ---------------- TAB 3: INTERPRETABILITY ----------------
 with tab3:
-    st.subheader("SHAP Feature Importance by Subtype")
-    st.caption("Top genes driving each subtype's predictions (XGBoost model)")
-
+    st.markdown('<div class="section-label">SHAP — Top Genes per Subtype (XGBoost)</div>', unsafe_allow_html=True)
     fig_dir = os.path.join(os.path.dirname(__file__), '..', 'results', 'figures')
     cols = st.columns(2)
     for i, subtype in enumerate(le_classes):
         img_path = os.path.join(fig_dir, f'shap_{subtype}.png')
         with cols[i % 2]:
-            st.markdown(f"**{subtype}**")
+            st.markdown(f'<div class="img-frame" style="margin-bottom:1rem"><div style="font-family:JetBrains Mono;font-size:0.75rem;color:#8b9bb4;margin-bottom:0.4rem;padding:0 0.2rem">{subtype.upper()}</div>', unsafe_allow_html=True)
             if os.path.exists(img_path):
-                st.image(img_path, use_column_width=True)
+                st.image(img_path, use_container_width=True)
             else:
-                st.info(f"SHAP plot for {subtype} not found — run notebook 05.")
+                st.caption(f"SHAP plot for {subtype} not found.")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown("---")
-st.caption("Built with TCGA-BRCA data via UCSC Xena | XGBoost + PyTorch Autoencoder Fusion")
+st.markdown("""
+<div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #253349;font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#5a6b85">
+TCGA-BRCA via UCSC Xena · XGBoost + PyTorch Autoencoder Fusion · Built for precision oncology R&D portfolio
+</div>
+""", unsafe_allow_html=True)
