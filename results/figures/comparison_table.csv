@@ -1,0 +1,5 @@
+Model,Accuracy
+XGBoost (baseline),0.8426966292134831
+Autoencoder Fusion,0.8539325594902039
+Autoencoder - Expr only,0.8539325594902039
+Autoencoder - Mut only,0.449438214302063
