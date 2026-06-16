@@ -29,10 +29,17 @@ st.markdown("""
     margin-bottom: 2rem;
 }
 .metric-card {
-    background-color: #f8f9fa;
+    background-color: #ffffff;
     border-radius: 10px;
     padding: 1.2rem;
     border-left: 4px solid #2e7bcf;
+    color: #1f3a5f;
+}
+.metric-card [data-testid="stMetricValue"] {
+    color: #1f3a5f;
+}
+.metric-card [data-testid="stMetricLabel"] {
+    color: #5a6c7d;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -153,7 +160,6 @@ with tab2:
         """.format(len(meta['expr_features']), len(meta['mut_features']),
                    len(meta['expr_features']) + len(meta['mut_features'])))
 
-        # Provide a downloadable template
         template_cols = meta['expr_features'] + meta['mut_features']
         template_df = pd.DataFrame(columns=template_cols)
         st.download_button("Download CSV template", template_df.to_csv(index=False),
@@ -177,7 +183,6 @@ with tab2:
             st.info("Upload a CSV to get a prediction, or switch to demo mode.")
             st.stop()
 
-    # --- Run predictions (same for both modes) ---
     expr_input = torch.tensor(expr_vec, dtype=torch.float32)
     mut_input = torch.tensor(mut_vec, dtype=torch.float32)
 
@@ -205,6 +210,7 @@ with tab2:
         agree_xgb = "✅" if le_classes[xgb_probs.argmax()] == true_label else "❌"
         agree_ae = "✅" if le_classes[ae_probs.argmax()] == true_label else "❌"
         st.markdown(f"True label: **{true_label}** | XGBoost correct: {agree_xgb} | Autoencoder correct: {agree_ae}")
+
 # ---------------- TAB 3: INTERPRETABILITY ----------------
 with tab3:
     st.subheader("SHAP Feature Importance by Subtype")
